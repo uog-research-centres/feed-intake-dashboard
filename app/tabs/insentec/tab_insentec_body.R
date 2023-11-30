@@ -20,7 +20,7 @@ tab_insentec$body <- tabItem(
                   "insentec_date_range_1",
                   "From",
                   format = "M dd, yyyy",
-                  value = Sys.Date() - 1,
+                  value = Sys.Date() - 7,
                   max = Sys.Date(),
                   width = 210
                 )
@@ -59,9 +59,9 @@ tab_insentec$body <- tabItem(
           elevation = 2,
           side = "right",
           
-          ##### Daily Feed Intake ----  
+          ##### Daily Feed Intake - Kg ----  
           tabPanel(
-            title = "Daily Feed Intake",
+            title = "Daily Feed Intake - Kg",
             fluidRow(
               column(12,
                      div(style="text-align: center;",
@@ -100,12 +100,56 @@ tab_insentec$body <- tabItem(
                      shinycssloaders::withSpinner(
                        DT::dataTableOutput("insentec_feed_summary")
                      )
-              ),
-              column(2,
               )
             )
           ),
           
+          ##### Daily Feed Intake - % ----  
+          tabPanel(
+            title = "Daily Feed Intake - %",
+            fluidRow(
+              column(12,
+                     div(style="text-align: center;",
+                         div(style = "display:inline-block",
+                             tags$b("Animals with total intake")
+                         ),
+                         div(style = "display:inline-block",
+                             numericInput("insentec_filter_pct_normal",
+                                          "",
+                                          value = 75,
+                                          step = 1,
+                                          max = 100,
+                                          width = 80)
+                         ),
+                         div(style = "display:inline-block",
+                             tags$b("% below their average daily intake in the past")
+                         ),
+                         div(style = "display:inline-block",
+                             numericInput("insentec_filter_ndays",
+                                          "",
+                                          value = 3,
+                                          step = 1,
+                                          max = 7,
+                                          width = 80)
+                         ),
+                         div(style = "display:inline-block",
+                             tags$b("days across all diets")
+                         )
+                     )
+              )
+            ),
+            
+            hr(),
+            
+            fluidRow(
+              style = "min-height: 800px;",
+              column(12,
+                     shinycssloaders::withSpinner(
+                       DT::dataTableOutput("insentec_feed_summary_pct")
+                     )
+              )
+            )
+          ),
           ##### Stealers ----
           tabPanel(
             title = "Stealers",
