@@ -10,6 +10,7 @@ library(DT)
 library(dplyr)
 library(lubridate)
 library(rjson)
+library(tidyr)
 
 ## User experience
 library(shinycssloaders)
