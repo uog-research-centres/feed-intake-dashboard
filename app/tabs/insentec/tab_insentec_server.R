@@ -70,7 +70,7 @@ tab_insentec$server <- function(input, output, session) {
         col_duration = corrected_feed_duration_seconds,
         sd_thresh = 5, 
         shiny.session = NULL, # use NULL if not inside a shiny app
-        log = TRUE
+        log = FALSE
       )
     # 2 Step outlier detection process 
     merged_by_cow <- 
@@ -138,25 +138,52 @@ tab_insentec$server <- function(input, output, session) {
     clean_feed <- clean_data %>%
       filter(start_weight_kg >= 0,
              end_weight_kg >= 0,
+             intake_kg >= 0) %>%
+      filter(start_weight_kg >= 0,
+             end_weight_kg >= 0,
              intake_kg >= 0) %>% 
       group_by(animal_id, date) %>%
       summarise(across(c(contains('intake'), contains('duration'), where(is.logical)),
                        list(sum = ~sum(.x, na.rm=TRUE), 
                             mean = ~mean(.x, na.rm=TRUE),
                             sd = ~sd(.x, na.rm=TRUE)))) %>%
-      complete(date = seq(min(date), max(date), by = "1 day")) %>%
       arrange(animal_id, date) %>% 
+      complete(date = seq(min(dates), max(dates), by = "1 day")) %>%
       mutate(across(c(intake_kg_sum, intake_kg_mean, intake_kg_sd, duration_sec_sum, duration_sec_mean, duration_sec_sd), 
                     ~ifelse(is.na(.), NA, .))) %>% 
       group_by(animal_id) %>%
       arrange(animal_id, date) %>% 
-      mutate(rolling_mean = zoo::rollapplyr(intake_kg_sum, width = ndays, FUN = function(x) mean(x, na.rm = TRUE), fill = NA, align = "right"),
-             rolling_sd = zoo::rollapplyr(intake_kg_sum, width = ndays, FUN = function(x) sd(x, na.rm = TRUE), fill = NA, align = "right"),
-             rolling_min= zoo::rollapplyr(intake_kg_sum, width = ndays, FUN = min, fill = NA, align = "right"),
-             rolling_max = zoo::rollapplyr(intake_kg_sum, width = ndays, FUN = max, fill = NA, align = "right"),
-             rolling_lower_q = zoo::rollapplyr(intake_kg_sum, width = ndays, FUN = function(x) quantile(x, 0.25, na.rm = TRUE), fill = NA, align = "right"),
-             rolling_upper_q = zoo::rollapplyr(intake_kg_sum, width = ndays, FUN = function(x) quantile(x, 0.75, na.rm = TRUE), fill = NA, align = "right")) %>%
-      complete(date = seq(min(dates), max(dates), by = "1 day")) %>%
+      mutate(rolling_mean = if_else(is.na(intake_kg_sum), NA,
+                                    zoo::rollapplyr(intake_kg_sum,
+                                                    width = ndays, fill = NA, align = "right", partial = T,
+                                                    FUN = function(x) mean(x, na.rm = TRUE)
+                                    )),
+             rolling_sd = if_else(is.na(intake_kg_sum), NA,
+                                  zoo::rollapplyr(intake_kg_sum,
+                                                  width = ndays, fill = NA, align = "right", partial = T,
+                                                  FUN = function(x) sd(x, na.rm = TRUE)
+                                  )),
+             rolling_min = if_else(is.na(intake_kg_sum), NA,
+                                   zoo::rollapplyr(intake_kg_sum,
+                                                   width = ndays, fill = NA, align = "right", partial = T,
+                                                   FUN = function(x) min(x)
+                                   )),
+             rolling_max = if_else(is.na(intake_kg_sum), NA,
+                                   zoo::rollapplyr(intake_kg_sum,
+                                                   width = ndays, fill = NA, align = "right", partial = T,
+                                                   FUN = function(x) max(x)
+                                   )),
+             rolling_lower_q = if_else(is.na(intake_kg_sum), NA,
+                                       zoo::rollapplyr(intake_kg_sum,
+                                                       width = ndays, fill = NA, align = "right", partial = T,
+                                                       FUN = function(x) quantile(x, 0.25, na.rm = TRUE)
+                                       )),
+             rolling_upper_q = if_else(is.na(intake_kg_sum), NA,
+                                       zoo::rollapplyr(intake_kg_sum,
+                                                       width = ndays, fill = NA, align = "right", partial = T,
+                                                       FUN = function(x) quantile(x, 0.75, na.rm = TRUE)
+                                       ))
+      ) %>% 
       filter(date == max(dates),
              !(is.na(rolling_mean))) %>% 
       rename("intake_kg" = intake_kg_sum) %>% 
@@ -195,9 +222,7 @@ tab_insentec$server <- function(input, output, session) {
                       dom = 'ltip',
                       scrollX = T,
                       deferRender = TRUE,
-                      # rowGroup = list(dataSrc = 0), # Group by animal id
                       orderFixed = list(1, 'asc') # Sort animal ids ascending
-                      # columnDefs = list(list(visible=FALSE, targets=c(1))) # Hide animal_id column as already shown on groups
                     )
       )
     })
